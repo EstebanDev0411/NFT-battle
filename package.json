@@ -1,7 +1,7 @@
 {
-  "name": "candycityserver",
+  "name": "nftbattle",
   "version": "1.0.0",
-  "description": "CandyCity Game Backend Server",
+  "description": "NFT-Battle Backend Server",
   "main": "server.js",
   "scripts": {
     "build": "tsc -p tsconfig.json",

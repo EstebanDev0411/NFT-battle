@@ -2,8 +2,10 @@ import { RequestHandler } from "express";
 import { StatusCodes } from "http-status-codes";
 import logger from "../utils/logger";
 import FirestoreService from "../service/firestore.service";
-import { userCollection, matchCollection } from "../config/collections";
+import { userCollection, matchCollection, leaderboardCollection } from "../config/collections";
 import { getFirestore } from "firebase-admin/firestore";
+import * as functions from 'firebase-functions';
+import * as admin from 'firebase-admin';
 
 const db = getFirestore();
 export const getOnlineUsers: RequestHandler = async (_req: any, res: any) => {
@@ -81,6 +83,38 @@ async function updateRanks(): Promise<void> {
     console.error('Error querying collection:', error);
   })
 }
+
+export const dailyReport = functions.pubsub.schedule('every 24 hours').onRun(async (context) => {
+  const collection = db.collection(leaderboardCollection);
+  const querySnapshot = await db.collection(userCollection).orderBy('points', 'desc').get();
+  const report = querySnapshot.docs.map((doc) => {
+    return {
+      userId: doc.id,
+      points: doc.data().points,
+      rank: doc.data().rank,
+      timestamp: admin.firestore.Timestamp.now(),
+    };
+  });
+  const reportId = `daily_${context.timestamp}`;
+  await collection.doc(reportId).set({ report: report });
+  console.log('Daily report generated and stored in Firestore successfully');
+});
+
+export const weeklyReport = functions.pubsub.schedule('every monday 00:00').onRun(async (context) => {
+  const collection = db.collection(leaderboardCollection);
+  const querySnapshot = await db.collection(userCollection).orderBy('points', 'desc').get();
+  const report = querySnapshot.docs.map((doc) => {
+    return {
+      userId: doc.id,
+      points: doc.data().points,
+      rank: doc.data().rank,
+      timestamp: admin.firestore.Timestamp.now(),
+    };
+  });
+  const reportId = `weekly_${context.timestamp}`;
+  await collection.doc(reportId).set({ report: report });
+  console.log('Weekly report generated and stored in Firestore successfully');
+});
 
 const leaderboard = { getOnlineUsers, getAvailableMatches, getMatchHistory };
 export default leaderboard;

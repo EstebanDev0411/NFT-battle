@@ -98,6 +98,28 @@ export const postScore: RequestHandler = async (req: any, res: any) => {
   }
 };
 
+export const addBalance: RequestHandler = async (req: any, res: any) => {
+  logger.info("Add balance");
+  try {
+    const userId = req.query.userId;
+    const { amount } = req.body;
+    await db.collection(userCollection).doc(userId).update({token : amount})
+    .then((_response) => {
+      return res
+        .status(StatusCodes.OK)
+        .json({ status: "successfully added" });
+    })
+    .catch((error: any) => {
+      return res
+        .status(StatusCodes.INTERNAL_SERVER_ERROR)
+        .json({ error: error.message });
+    });
+  } catch(error)
+  {
+    return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json(error);
+  }
+}
+
 // Define a function to sort users by points and update their rank
 // async function updateRanks(): Promise<void> {
 //   // Get all the users from Firestore
@@ -125,5 +147,5 @@ export const postScore: RequestHandler = async (req: any, res: any) => {
 //   })
 // }
 
-const user = { deleteUser, updateUser, postScore, getUser};
+const user = { deleteUser, updateUser, postScore, getUser, addBalance};
 export default user;

@@ -4,7 +4,6 @@ import leaderboard from "../controller/leaderboard.controller";
 const leaderboardRoute = Router();
 
 // matchRoute.post("/create", verifyBodyRequest, match.addMatch);
-leaderboardRoute.get("/getUsers", leaderboard.getOnlineUsers);
-leaderboardRoute.get("/getAvailableMatches", leaderboard.getAvailableMatches);
-leaderboardRoute.get("/getMatchHistory", leaderboard.getMatchHistory);
+leaderboardRoute.get("/getDailyRanks", leaderboard.getDailyRanks);
+leaderboardRoute.get("/getWeeklyRanks", leaderboard.getWeeklyRanks);
 export default leaderboardRoute;

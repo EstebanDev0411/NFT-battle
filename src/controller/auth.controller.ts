@@ -4,6 +4,8 @@ import logger from "../utils/logger";
 import firebase from "../config/firebase";
 import FirestoreService from "../service/firestore.service";
 import { userCollection } from "../config/collections";
+import * as admin from 'firebase-admin';
+
 // // Sign in with Google
 // export const signInWithGoogle = async (req: Request, res: Response): Promise<Response> => {
 //   logger.info('signInWithGoogle');
@@ -82,11 +84,10 @@ export const signup: RequestHandler = (req: any, res: any) => {
     .then(async (_data: any) => {
       const newDoc = {
         email: req.body.email,
-        point: 0,
-        rank: 999,
-        level: 1,
-        is_online: true,
-        userName: req.body.userName
+        dailyScore: 0,
+        weeklyScore: 0,
+        userName: req.body.userName,
+        lastPlayed: admin.firestore.Timestamp.now(),
       };
       const ret = await FirestoreService.createOne(userCollection, newDoc);
       return res.status(StatusCodes.CREATED).json(ret);

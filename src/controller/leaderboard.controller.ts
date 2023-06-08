@@ -18,7 +18,7 @@ interface User {
 export const getDailyRanks : RequestHandler = async (req: any, res: any) => {
   logger.info("Get daily ranks");
   try {
-    const { count, page } = req.query;
+    const { count, page, userId } = req.query;
     const startAfter = count * (page - 1);
     const endBefore = startAfter + count;
 
@@ -34,10 +34,10 @@ export const getDailyRanks : RequestHandler = async (req: any, res: any) => {
     const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
     const todayUsers = users.filter(user => user.dailyScore > 0 && user.lastPlayed.toDate() >= todayStart);
     const dailyRanks = todayUsers.map((user, index) => ({ user, rank: index + 1 }));
-
+    const myRank = dailyRanks.find((data) => data.user.userName === userId);
     // Paginate results
     const paginatedRanks = dailyRanks.slice(startAfter, endBefore);
-    return res.status(StatusCodes.OK).json(paginatedRanks);
+    return res.status(StatusCodes.OK).json({myRank, paginatedRanks});
 
   } catch (error) {
     return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json(error);
@@ -48,7 +48,7 @@ export const getDailyRanks : RequestHandler = async (req: any, res: any) => {
 export const getWeeklyRanks : RequestHandler = async (req: any, res: any) => {
   logger.info("Get weekly ranks");
   try {
-    const { count, page } = req.query;
+    const { count, page, userId } = req.query;
     const startAfter = count * (page - 1);
     const endBefore = startAfter + count;
 
@@ -64,10 +64,10 @@ export const getWeeklyRanks : RequestHandler = async (req: any, res: any) => {
     const weekStart = new Date(today.getFullYear(), today.getMonth(), today.getDate() - today.getDay());
     const weekUsers = users.filter(user => user.weeklyScore > 0 && user.lastPlayed.toDate() >= weekStart);
     const weeklyRanks = weekUsers.map((user, index) => ({ user, rank: index + 1 }));
-
+    const myRank = weeklyRanks.find((data) => data.user.userName === userId);
     // Paginate results
     const paginatedRanks = weeklyRanks.slice(startAfter, endBefore);
-    return res.status(StatusCodes.OK).json(paginatedRanks);
+    return res.status(StatusCodes.OK).json({myRank, paginatedRanks});
     
   } catch (error) {
     return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json(error);

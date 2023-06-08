@@ -88,6 +88,9 @@ export const signup: RequestHandler = (req: any, res: any) => {
         weeklyScore: 0,
         userName: req.body.userName,
         token: 0,
+        stamina: 1,
+        damage: 1,
+        reloadspeed: 1,
         lastPlayed: admin.firestore.Timestamp.now(),
       };
       const ret = await FirestoreService.createOne(userCollection, newDoc);

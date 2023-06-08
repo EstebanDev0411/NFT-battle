@@ -67,8 +67,8 @@ export const postScore: RequestHandler = async (req: any, res: any) => {
   {
     const userId = req.query.userId;
     const { score } = req.body;
-    const userRef = db.collection(userCollection).doc(userId);
-    const userDoc = await userRef.get();
+    const userRef = db.collection(userCollection).where('userName', '==', userId).get();
+    const userDoc = (await userRef).docs[0];
     if (!userDoc.exists) {
       return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json("That user does not exist!");
     }
@@ -78,19 +78,19 @@ export const postScore: RequestHandler = async (req: any, res: any) => {
     const weekStart = new Date(today.getFullYear(), today.getMonth(), today.getDate() - today.getDay());
     if (user.lastPlayed.toDate() < today) {
       // Reset daily score if it's a new day
-      await userRef.update({ dailyScore: 0, lastPlayed: admin.firestore.Timestamp.fromDate(today) });
+      await userDoc.ref.update({ dailyScore: 0, lastPlayed: admin.firestore.Timestamp.fromDate(today) });
     }
     if (user.lastPlayed.toDate() < weekStart) {
       // Reset weekly score if it's a new week
-      await userRef.update({ weeklyScore: 0 });
+      await userDoc.ref.update({ weeklyScore: 0 });
     }
     if (score > user.dailyScore) {
       // Update daily score if it's higher than the current one
-      await userRef.update({ dailyScore: score });
+      await userDoc.ref.update({ dailyScore: score });
     }
     if (score > user.weeklyScore) {
       // Update weekly score if it's higher than the current one
-      await userRef.update({ weeklyScore: score });
+      await userDoc.ref.update({ weeklyScore: score });
     }
     return res.status(StatusCodes.OK).json("updated successfully");
   } catch(error) {
@@ -98,12 +98,46 @@ export const postScore: RequestHandler = async (req: any, res: any) => {
   }
 };
 
+export const upgradeLevel: RequestHandler = async (req: any, res: any) => {
+  logger.info("Update the ability of user");
+  try {
+    const userId = req.query.userId;
+    const { stamina, damage, reloadspeed } = req.body;
+    const updates: Record<string, unknown> = {};
+    if (stamina != null && stamina <= 5 && stamina > 1) {
+      updates.stamina = stamina;
+    }
+
+    if (damage != null && damage <= 5 && damage > 1) {
+      updates.damage = damage;
+    }
+
+    if (reloadspeed != null && reloadspeed <= 5 && reloadspeed > 1) {
+      updates.reloadspeed = reloadspeed;
+    }
+    await (await db.collection(userCollection).where('userName', '==', userId).get()).docs[0].ref.update(updates)
+    .then((_response) => {
+      return res
+        .status(StatusCodes.OK)
+        .json({ status: "successfully updated" });
+    })
+    .catch((error: any) => {
+      return res
+        .status(StatusCodes.INTERNAL_SERVER_ERROR)
+        .json({ error: error.message });
+    });
+  } catch(error)
+  {
+    return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json(error);
+  }
+}
+
 export const addBalance: RequestHandler = async (req: any, res: any) => {
   logger.info("Add balance");
   try {
     const userId = req.query.userId;
     const { amount } = req.body;
-    await db.collection(userCollection).doc(userId).update({token : amount})
+    await (await db.collection(userCollection).where('userName', '==', userId).get()).docs[0].ref.update({token : admin.firestore.FieldValue.increment(amount)})
     .then((_response) => {
       return res
         .status(StatusCodes.OK)
@@ -147,5 +181,5 @@ export const addBalance: RequestHandler = async (req: any, res: any) => {
 //   })
 // }
 
-const user = { deleteUser, updateUser, postScore, getUser, addBalance};
+const user = { deleteUser, updateUser, postScore, getUser, addBalance, upgradeLevel};
 export default user;

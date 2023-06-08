@@ -9,5 +9,6 @@ userRoute.delete("/delete", user.deleteUser);
 userRoute.get("/getUser", user.getUser);
 userRoute.post("/postScore", user.postScore);
 userRoute.post("/addBalance", user.addBalance);
+userRoute.post("/upgradeLevel", user.upgradeLevel);
 
 export default userRoute;

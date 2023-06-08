@@ -18,7 +18,7 @@ interface User {
 export const getDailyRanks : RequestHandler = async (req: any, res: any) => {
   logger.info("Get daily ranks");
   try {
-    const { count, page } = req.body;
+    const { count, page } = req.query;
     const startAfter = count * (page - 1);
     const endBefore = startAfter + count;
 
@@ -48,7 +48,7 @@ export const getDailyRanks : RequestHandler = async (req: any, res: any) => {
 export const getWeeklyRanks : RequestHandler = async (req: any, res: any) => {
   logger.info("Get weekly ranks");
   try {
-    const { count, page } = req.body;
+    const { count, page } = req.query;
     const startAfter = count * (page - 1);
     const endBefore = startAfter + count;
 

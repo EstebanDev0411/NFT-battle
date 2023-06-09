@@ -84,11 +84,11 @@ export const postScore: RequestHandler = async (req: any, res: any) => {
       // Reset weekly score if it's a new week
       await userDoc.ref.update({ weeklyScore: 0 });
     }
-    if (score > user.dailyScore) {
+    if (parseInt(score) > user.dailyScore) {
       // Update daily score if it's higher than the current one
       await userDoc.ref.update({ dailyScore: score });
     }
-    if (score > user.weeklyScore) {
+    if (parseInt(score) > user.weeklyScore) {
       // Update weekly score if it's higher than the current one
       await userDoc.ref.update({ weeklyScore: score });
     }
@@ -137,7 +137,7 @@ export const addBalance: RequestHandler = async (req: any, res: any) => {
   try {
     const userId = req.query.userId;
     const { amount } = req.body;
-    await (await db.collection(userCollection).where('userName', '==', userId).get()).docs[0].ref.update({token : admin.firestore.FieldValue.increment(amount)})
+    await (await db.collection(userCollection).where('userName', '==', userId).get()).docs[0].ref.update({token : admin.firestore.FieldValue.increment(parseInt(amount))})
     .then((_response) => {
       return res
         .status(StatusCodes.OK)

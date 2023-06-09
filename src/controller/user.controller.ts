@@ -86,11 +86,11 @@ export const postScore: RequestHandler = async (req: any, res: any) => {
     }
     if (parseInt(score) > user.dailyScore) {
       // Update daily score if it's higher than the current one
-      await userDoc.ref.update({ dailyScore: score });
+      await userDoc.ref.update({ dailyScore: parseInt(score) });
     }
     if (parseInt(score) > user.weeklyScore) {
       // Update weekly score if it's higher than the current one
-      await userDoc.ref.update({ weeklyScore: score });
+      await userDoc.ref.update({ weeklyScore: parseInt(score) });
     }
     return res.status(StatusCodes.OK).json("updated successfully");
   } catch(error) {

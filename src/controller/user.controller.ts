@@ -104,16 +104,16 @@ export const upgradeLevel: RequestHandler = async (req: any, res: any) => {
     const userId = req.query.userId;
     const { stamina, damage, reloadspeed } = req.body;
     const updates: Record<string, unknown> = {};
-    if (stamina != null && stamina <= 6 && stamina > 1) {
-      updates.stamina = stamina;
+    if (stamina != null && parseInt(stamina) <= 6 && parseInt(stamina) > 1) {
+      updates.stamina = parseInt(stamina);
     }
 
-    if (damage != null && damage <= 6 && damage > 1) {
-      updates.damage = damage;
+    if (damage != null && parseInt(damage) <= 6 && parseInt(damage) > 1) {
+      updates.damage = parseInt(damage);
     }
 
     if (reloadspeed != null && reloadspeed <= 6 && reloadspeed > 1) {
-      updates.reloadspeed = reloadspeed;
+      updates.reloadspeed = parseInt(reloadspeed);
     }
     await (await db.collection(userCollection).where('userName', '==', userId).get()).docs[0].ref.update(updates)
     .then((_response) => {

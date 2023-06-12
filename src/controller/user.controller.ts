@@ -76,18 +76,21 @@ export const postScore: RequestHandler = async (req: any, res: any) => {
     // Update daily and weekly scores based on current date
     const today = new Date();
     const weekStart = new Date(today.getFullYear(), today.getMonth(), today.getDate() - today.getDay());
-    if (user.lastPlayed.toDate() < today) {
+    if (user.lastPlayed.toDate().getFullYear() !== today.getFullYear() ||
+        user.lastPlayed.toDate().getMonth() !== today.getMonth() ||
+        user.lastPlayed.toDate().getDate() !== today.getDate()) {
       // Reset daily score if it's a new day
-      await userDoc.ref.update({ dailyScore: 0, lastPlayed: admin.firestore.Timestamp.fromDate(today) });
+      await userDoc.ref.update({ dailyScore: parseInt(score), lastPlayed: admin.firestore.Timestamp.fromDate(today) });
+    }
+    else if (parseInt(score) >= user.dailyScore) {
+      // Update daily score if it's higher than the current one
+      await userDoc.ref.update({ dailyScore: parseInt(score), lastPlayed: admin.firestore.Timestamp.fromDate(today)});
     }
     if (user.lastPlayed.toDate() < weekStart) {
       // Reset weekly score if it's a new week
-      await userDoc.ref.update({ weeklyScore: 0 });
+      await userDoc.ref.update({ weeklyScore: parseInt(score) });
     }
-    if (parseInt(score) >= user.dailyScore) {
-      // Update daily score if it's higher than the current one
-      await userDoc.ref.update({ dailyScore: parseInt(score) });
-    }
+
     if (parseInt(score) >= user.weeklyScore) {
       // Update weekly score if it's higher than the current one
       await userDoc.ref.update({ weeklyScore: parseInt(score) });
@@ -137,6 +140,19 @@ export const addBalance: RequestHandler = async (req: any, res: any) => {
   try {
     const userId = req.query.userId;
     const { amount } = req.body;
+    // Get the current token value
+    const userDoc = await db.collection(userCollection).where('userName', '==', userId).get();
+    const currentTokenValue = userDoc.docs[0].data().token;
+
+    // Calculate the new token value
+    const newTokenValue = currentTokenValue + parseInt(amount);
+
+    // Check if the new token value is less than 0
+    if (newTokenValue < 0) {
+      return res
+        .status(StatusCodes.BAD_REQUEST)
+        .json({ error: "Need more balance. Token value cannot be less than 0" });
+    }
     await (await db.collection(userCollection).where('userName', '==', userId).get()).docs[0].ref.update({token : admin.firestore.FieldValue.increment(parseInt(amount))})
     .then((_response) => {
       return res

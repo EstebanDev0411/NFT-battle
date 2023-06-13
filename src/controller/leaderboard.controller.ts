@@ -1,7 +1,7 @@
 import { RequestHandler } from "express";
 import { StatusCodes } from "http-status-codes";
 import logger from "../utils/logger";
-import { userCollection } from "../config/collections";
+import { userCollection, leaderboardCollection } from "../config/collections";
 import { getFirestore } from "firebase-admin/firestore";
 import * as admin from 'firebase-admin';
 
@@ -64,7 +64,10 @@ export const getWeeklyRanks : RequestHandler = async (req: any, res: any) => {
     const weekStart = new Date(today.getFullYear(), today.getMonth(), today.getDate() - today.getDay());
     const weekUsers = users.filter(user => user.weeklyScore > 0 && user.lastPlayed.toDate() >= weekStart);
     const weeklyRanks = weekUsers.map((user, index) => ({ user, rank: index + 1 }));
-    const myRank = weeklyRanks.find((data) => data.user.userName === userId);
+    const myRank 
+     
+     
+    = weeklyRanks.find((data) => data.user.userName === userId);
     // Paginate results
     const paginatedRanks = weeklyRanks.slice(startAfter, endBefore);
     return res.status(StatusCodes.OK).json({myRank, paginatedRanks});
@@ -107,6 +110,53 @@ export const getWeeklyRanks : RequestHandler = async (req: any, res: any) => {
 //   await collection.doc(reportId).set({  : report });
 //   console.log('Weekly report generated and stored in Firestore successfully');
 // });
+
+// 
+
+// Define a function to update the daily and weekly leaderboards
+async function updateLeaderboards() {
+  console.log('update leaderboards!')
+  const usersRef = db.collection(userCollection);
+  const leaderboardRef = db.collection(leaderboardCollection);
+  const today = new Date();
+  const yesterday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1);
+  // const weekStart = new Date(today.getFullYear(), today.getMonth(), today.getDate() - today.getDay());
+  const lastWeekStart = new Date(today.getFullYear(), today.getMonth(), today.getDate() - today.getDay() - 7);
+
+  // Get the top 3 daily users and update the daily top 3 collection
+  const dailyTop3Query = usersRef.where('lastPlayed', '>=', yesterday.toISOString()).orderBy('dailyScore', 'desc').limit(3).get();
+  const dailyTop3Users = (await dailyTop3Query).docs.map(doc => ({ id: doc.id, name: doc.data().name, score: doc.data().dailyScore, reward: false }));
+  await leaderboardRef.doc('daily-top3/' + yesterday.toISOString().substring(0, 10)).set({ users: dailyTop3Users });
+
+  // Get the top 3 weekly users and update the weekly top 3 collection
+  const weeklyTop3Query = usersRef.where('lastPlayed', '>=', lastWeekStart.toISOString()).orderBy('weeklyScore', 'desc').limit(3).get();
+  const weeklyTop3Users = (await weeklyTop3Query).docs.map(doc => ({ id: doc.id, name: doc.data().name, score: doc.data().weeklyScore, reward: false }));
+  await leaderboardRef.doc('weekly-top3/' + lastWeekStart.toISOString().substring(0, 10)).set({ users: weeklyTop3Users });
+}
+
+// Define a function to reset the daily and weekly scores
+// async function resetScores() {
+//   const usersRef = db.collection('users');
+//   const today = new Date();
+//   const weekStart = new Date(today.getFullYear(), today.getMonth(), today.getDate() - today.getDay());
+
+//   // Reset daily scores
+//   const dailyResetQuery = usersRef.where('lastPlayed', '<=', today.toISOString()).get();
+//   (await dailyResetQuery).docs.forEach(doc => doc.ref.update({ dailyScore: 0 }));
+
+//   // Reset weekly scores
+//   const weeklyResetQuery = usersRef.where('lastPlayed', '<=', weekStart.toISOString()).get();
+//   (await weeklyResetQuery).docs.forEach(doc => doc.ref.update({ weeklyScore: 0 }));
+// }
+
+// Call the updateLeaderboards function once a day at midnight
+setInterval(() => {
+  // const now = new Date();
+  // if (now.getHours() === 0 && now.getMinutes() === 0) {
+    //   // resetScores();
+    // }
+  updateLeaderboards();
+}, 1000);
 
 const leaderboard = { getDailyRanks, getWeeklyRanks };
 export default leaderboard;

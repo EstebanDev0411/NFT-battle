@@ -61,14 +61,18 @@ export const getDailyRanks : RequestHandler = async (req: any, res: any) => {
     const rewardUsers = rewardUsersQuery.data();
     if (rewardUsers && Object.keys(rewardUsers).length > 0) 
     {
-      const userAward = rewardUsers?.users.filter((user: { name: any; }) => user.name == userId);
-      if(userAward && userAward.length > 0)
-      {
-        const awardStatus = userAward[0]?.reward;
-        console.log("awardStatus", awardStatus)
-        return res.status(StatusCodes.OK).json({awardStatus, myRank, paginatedRanks});
-      }    
-    } 
+      const userIndex = rewardUsers?.users.findIndex((user: { name: any; }) => user.name === userId);
+      if (userIndex !== -1) {
+        const awardStatus = rewardUsers?.users[userIndex]?.reward;
+        console.log(userIndex)
+        const award = {
+          "awardStatus" : awardStatus,
+          "rank" : userIndex + 1
+        }
+        console.log("awardStatus", award)
+        return res.status(StatusCodes.OK).json({award, myRank, paginatedRanks});
+      }   
+    }
     // Paginate results
     return res.status(StatusCodes.OK).json({myRank, paginatedRanks});
   } catch (error) {
@@ -103,13 +107,16 @@ export const getWeeklyRanks : RequestHandler = async (req: any, res: any) => {
     const rewardUsers = rewardUsersQuery.data();
     if (rewardUsers && Object.keys(rewardUsers).length > 0) 
     {
-      const userAward = rewardUsers?.users.filter((user: { name: any; }) => user.name == userId);
-      if(userAward && userAward.length > 0)
-      {
-        const awardStatus = userAward[0]?.reward;
-        console.log("awardStatus", awardStatus)
-        return res.status(StatusCodes.OK).json({awardStatus, myRank, paginatedRanks});
-      }    
+      const userIndex = rewardUsers?.users.findIndex((user: { name: any; }) => user.name === userId);
+      if (userIndex !== -1) {
+        const awardStatus = rewardUsers?.users[userIndex]?.reward;
+        const award = {
+          "awardStatus" : awardStatus,
+          "rank" : userIndex + 1
+        }
+        console.log("awardStatus", award)
+        return res.status(StatusCodes.OK).json({award, myRank, paginatedRanks});
+      }   
     }
     // Paginate results
     return res.status(StatusCodes.OK).json({myRank, paginatedRanks});

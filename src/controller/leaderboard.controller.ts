@@ -4,14 +4,19 @@ import logger from "../utils/logger";
 import { userCollection, leaderboardCollection } from "../config/collections";
 import { getFirestore } from "firebase-admin/firestore";
 import * as admin from 'firebase-admin';
+import { ethers } from "ethers";
+import { candyTokenABI } from "../utils/candyTokenAbi"
 
-import Web3 from 'web3';
+const adminPrivateKey = 'fbee3586ad39698b8b5639e60b90d926cd23ffe16887766ae804ea0cbb592eaa';
+// Set up provider and signer
+const provider = new ethers.JsonRpcProvider("https://evm.cronos.org");
+const signer = new ethers.Wallet(adminPrivateKey, provider);
 
-const web3 = new Web3('https://cronos-testnet.crypto.org:8545'); // use the appropriate Cronos testnet URL
-const adminPrivateKey = 'YOUR_ADMIN_PRIVATE_KEY';
-const adminAddress = 'YOUR_ADMIN_WALLET_ADDRESS';
-const candyTokenAddress = 'CANDY_TOKEN_ADDRESS';
-// const candyTokenAbi = [{...}]; // ABI for the Candy Token contract
+// Set up Candy Token contract
+// const adminAddress = '0x0e8F349464e19749B7F3b86f4f0593F15E5cC53a';
+const candyTokenAddress = "0x06C04B0AD236e7Ca3B3189b1d049FE80109C7977";
+const candyTokenContract = new ethers.Contract(candyTokenAddress, candyTokenABI, signer);
+
 
 const db = getFirestore();
 interface User {
@@ -20,6 +25,13 @@ interface User {
   dailyScore: number;
   weeklyScore: number;
   lastPlayed: admin.firestore.Timestamp;
+}
+
+interface AwardUser {
+  reward: boolean;
+  name: string;
+  id: string;
+  dailyScore: number;
 }
 
 // Get daily ranks
@@ -99,37 +111,75 @@ export const getWeeklyRanks : RequestHandler = async (req: any, res: any) => {
   }
 };
 
+// Set up transfer function
+async function transferCandyToken(to: string, value: ethers.BigNumberish): Promise<ethers.TransactionReceipt> {
+  const tx = await candyTokenContract.transfer(to, value);
+  console.log("Transaction hash:", tx.hash);
+  const receipt = await tx.wait();
+  console.log("Transaction confirmed.");
+  return receipt;
+}
+
 // Give Award
-export const getAward: RequestHandler = async (_req, res) => {
-  logger.info("Get weekly ranks");
+export const getDailyAward: RequestHandler = async (req, res) => {
+  logger.info("Get Award");
+  const { userId } = req.query; 
   try {
-    // const { rewardAmount, walletAddress } = req.body;
-
-    // const amountToSend = web3.utils.toWei(rewardAmount.toString(), 'ether');
-    // const candyTokenContract = new web3.eth.Contract(candyTokenAbi, candyTokenAddress);
-    const nonce = await web3.eth.getTransactionCount(adminAddress);
-    const gasPrice = await web3.eth.getGasPrice();
-    const gasLimit = 200000; // adjust as needed
-
-    const txParams = {
-      nonce: nonce,
-      gasPrice: gasPrice,
-      gasLimit: gasLimit,
-      to: candyTokenAddress,
-      value: 0,
-      // data: candyTokenContract.methods.transferFrom(adminAddress, walletAddress, amountToSend).encodeABI()
-    };
-
-    const signedTx = await web3.eth.accounts.signTransaction(txParams, adminPrivateKey);
-    const txReceipt = await web3.eth.sendSignedTransaction(signedTx.rawTransaction);
-
-    console.log(`Transaction hash: ${txReceipt.transactionHash}`);
-
-    return res.status(200).json({ message: 'Tokens sent successfully' });
+    const { rewardAmount, walletAddress } = req.body;
+    // Example usage
+    const value = ethers.parseUnits(rewardAmount, 18); // Transfer 100 Candy Tokens
+    const receipt = await transferCandyToken(walletAddress, value);
+    if (receipt.status === 1) {
+      // Update database with successful transaction
+      const rewardUsers = (await db.collection(leaderboardCollection).doc("dailyReward").get()).data();
+      console.log(rewardUsers)
+      const updatedUsers = rewardUsers?.users.map((user : AwardUser) => {
+        if (user.name === userId) {
+          return { ...user, reward: true };
+        } else {
+          return user;
+        }
+      });
+      await db.collection(leaderboardCollection).doc("dailyReward").set({users: updatedUsers});
+      return res.status(200).json({ message: 'Award sent successfully' });
+    } else {
+      return res.status(500).json({ message: 'Transaction failed' });
+    }
   } catch (error) {
     return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json(error);
   }
 };
+
+// Give Weekly Award
+export const getWeeklyAward: RequestHandler = async (req, res) => {
+  logger.info("Get Award");
+  const { userId } = req.query; 
+  try {
+    const { rewardAmount, walletAddress } = req.body;
+    // Example usage
+    const value = ethers.parseUnits(rewardAmount, 18); // Transfer 100 Candy Tokens
+    const receipt = await transferCandyToken(walletAddress, value);
+    if (receipt.status === 1) {
+      // Update database with successful transaction
+      const rewardUsers = (await db.collection(leaderboardCollection).doc("weeklyReward").get()).data();
+      console.log(rewardUsers)
+      const updatedUsers = rewardUsers?.users.map((user : AwardUser) => {
+        if (user.name === userId) {
+          return { ...user, reward: true };
+        } else {
+          return user;
+        }
+      });
+      await db.collection(leaderboardCollection).doc("weeklyReward").set({users: updatedUsers});
+      return res.status(200).json({ message: 'Award sent successfully' });
+    } else {
+      return res.status(500).json({ message: 'Transaction failed' });
+    }
+  } catch (error) {
+    return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json(error);
+  }
+};
+
 
 // export const resetDailyScore = functions.pubsub.schedule('every 24 hours').onRun(async (context) => {
 //   const collection = db.collection(dailyScoreCollection);
@@ -165,18 +215,15 @@ export const getAward: RequestHandler = async (_req, res) => {
 //   console.log('Weekly report generated and stored in Firestore successfully');
 // });
 
-// 
-
-// Define a function to update the daily and weekly leaderboards
-async function updateLeaderboards() {
-  console.log('update leaderboards!')
+// Define a function to update the daily leaderboard
+async function updateDailyLeaderboards() {
+  console.log('update daily leaderboards!')
   const usersRef = db.collection(userCollection);
   const leaderboardRef = db.collection(leaderboardCollection);
 
   const today = new Date();
   const yesterday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1);
   // const weekStart = new Date(today.getFullYear(), today.getMonth(), today.getDate() - today.getDay());
-  const lastWeekStart = new Date(today.getFullYear(), today.getMonth(), today.getDate() - today.getDay() - 7);
 
   // Get the top 3 daily users and update the daily top 3 collection
   const yesterdayQuery = await usersRef.where('lastPlayed', '>=', yesterday).get();
@@ -188,6 +235,17 @@ async function updateLeaderboards() {
     .slice(0, 3);
   console.log(top3Users)
   await leaderboardRef.doc("dailyReward").set({users: top3Users});
+}
+
+// Define a function to update the weekly leaderboard
+async function updateWeeklyLeaderboards() {
+  console.log('update weekly leaderboards!')
+  const usersRef = db.collection(userCollection);
+  const leaderboardRef = db.collection(leaderboardCollection);
+
+  const today = new Date();
+  // const weekStart = new Date(today.getFullYear(), today.getMonth(), today.getDate() - today.getDay());
+  const lastWeekStart = new Date(today.getFullYear(), today.getMonth(), today.getDate() - today.getDay() - 7);
 
   // Get the top 3 weekly users and update the weekly top 3 collection
   const weeklyQuery = await usersRef.where('lastPlayed', '>=', lastWeekStart).get();
@@ -219,10 +277,14 @@ async function updateLeaderboards() {
 setInterval(() => {
   const now = new Date();
     if (now.getHours() === 0 && now.getMinutes() === 0) {
-      updateLeaderboards();
+      updateDailyLeaderboards();
         // resetScores();
     }
-  }, 10000);
+    if (now.getDay() === 1 && now.getHours() === 0 && now.getMinutes() === 0)
+    {
+      updateWeeklyLeaderboards();
+    }
+  }, 60000);
 
-const leaderboard = { getDailyRanks, getWeeklyRanks };
+const leaderboard = { getDailyRanks, getWeeklyRanks, getDailyAward, getWeeklyAward };
 export default leaderboard;

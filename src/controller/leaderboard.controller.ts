@@ -5,6 +5,14 @@ import { userCollection, leaderboardCollection } from "../config/collections";
 import { getFirestore } from "firebase-admin/firestore";
 import * as admin from 'firebase-admin';
 
+import Web3 from 'web3';
+
+const web3 = new Web3('https://cronos-testnet.crypto.org:8545'); // use the appropriate Cronos testnet URL
+const adminPrivateKey = 'YOUR_ADMIN_PRIVATE_KEY';
+const adminAddress = 'YOUR_ADMIN_WALLET_ADDRESS';
+const candyTokenAddress = 'CANDY_TOKEN_ADDRESS';
+// const candyTokenAbi = [{...}]; // ABI for the Candy Token contract
+
 const db = getFirestore();
 interface User {
   id: string;
@@ -35,10 +43,18 @@ export const getDailyRanks : RequestHandler = async (req: any, res: any) => {
     const todayUsers = users.filter(user => user.dailyScore > 0 && user.lastPlayed.toDate() >= todayStart);
     const dailyRanks = todayUsers.map((user, index) => ({ user, rank: index + 1 }));
     const myRank = dailyRanks.find((data) => data.user.userName === userId);
-    // Paginate results
     const paginatedRanks = dailyRanks.slice(startAfter, endBefore);
+    
+    const rewardUsers = (await db.collection(leaderboardCollection).doc("dailyReward").get()).data();
+    const userAward = rewardUsers?.users.filter((user: { name: any; }) => user.name == userId);
+    if(userAward)
+    {
+      const awardStatus = userAward[0]?.reward;
+      console.log("awardStatus", awardStatus)
+      return res.status(StatusCodes.OK).json({awardStatus, myRank, paginatedRanks});
+    }    
+    // Paginate results
     return res.status(StatusCodes.OK).json({myRank, paginatedRanks});
-
   } catch (error) {
     return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json(error);
   }
@@ -64,14 +80,52 @@ export const getWeeklyRanks : RequestHandler = async (req: any, res: any) => {
     const weekStart = new Date(today.getFullYear(), today.getMonth(), today.getDate() - today.getDay());
     const weekUsers = users.filter(user => user.weeklyScore > 0 && user.lastPlayed.toDate() >= weekStart);
     const weeklyRanks = weekUsers.map((user, index) => ({ user, rank: index + 1 }));
-    const myRank 
-     
-     
-    = weeklyRanks.find((data) => data.user.userName === userId);
+    const myRank = weeklyRanks.find((data) => data.user.userName === userId);
     // Paginate results
     const paginatedRanks = weeklyRanks.slice(startAfter, endBefore);
+    const rewardUsers = (await db.collection(leaderboardCollection).doc("weeklyReward").get()).data();
+    const userAward = rewardUsers?.users.filter((user: { name: any; }) => user.name == userId);
+    if(userAward)
+    {
+      const awardStatus = userAward[0]?.reward;
+      console.log("awardStatus", awardStatus)
+      return res.status(StatusCodes.OK).json({awardStatus, myRank, paginatedRanks});
+    }    
+    // Paginate results
     return res.status(StatusCodes.OK).json({myRank, paginatedRanks});
     
+  } catch (error) {
+    return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json(error);
+  }
+};
+
+// Give Award
+export const getAward: RequestHandler = async (_req, res) => {
+  logger.info("Get weekly ranks");
+  try {
+    // const { rewardAmount, walletAddress } = req.body;
+
+    // const amountToSend = web3.utils.toWei(rewardAmount.toString(), 'ether');
+    // const candyTokenContract = new web3.eth.Contract(candyTokenAbi, candyTokenAddress);
+    const nonce = await web3.eth.getTransactionCount(adminAddress);
+    const gasPrice = await web3.eth.getGasPrice();
+    const gasLimit = 200000; // adjust as needed
+
+    const txParams = {
+      nonce: nonce,
+      gasPrice: gasPrice,
+      gasLimit: gasLimit,
+      to: candyTokenAddress,
+      value: 0,
+      // data: candyTokenContract.methods.transferFrom(adminAddress, walletAddress, amountToSend).encodeABI()
+    };
+
+    const signedTx = await web3.eth.accounts.signTransaction(txParams, adminPrivateKey);
+    const txReceipt = await web3.eth.sendSignedTransaction(signedTx.rawTransaction);
+
+    console.log(`Transaction hash: ${txReceipt.transactionHash}`);
+
+    return res.status(200).json({ message: 'Tokens sent successfully' });
   } catch (error) {
     return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json(error);
   }
@@ -163,12 +217,12 @@ async function updateLeaderboards() {
 
 // Call the updateLeaderboards function once a day at midnight
 setInterval(() => {
-  // const now = new Date();
-  // if (now.getHours() === 0 && now.getMinutes() === 0) {
-    //   // resetScores();
-    // }
-  updateLeaderboards();
-}, 10000);
+  const now = new Date();
+    if (now.getHours() === 0 && now.getMinutes() === 0) {
+      updateLeaderboards();
+        // resetScores();
+    }
+  }, 10000);
 
 const leaderboard = { getDailyRanks, getWeeklyRanks };
 export default leaderboard;

@@ -150,7 +150,7 @@ export const getDailyAward: RequestHandler = async (req, res) => {
       console.log(rewardUsers)
       const updatedUsers = rewardUsers?.users.map((user : AwardUser) => {
         if (user.name === userId) {
-          return { ...user, reward: true };
+          return { ...user, reward: false };
         } else {
           return user;
         }
@@ -180,7 +180,7 @@ export const getWeeklyAward: RequestHandler = async (req, res) => {
       console.log(rewardUsers)
       const updatedUsers = rewardUsers?.users.map((user : AwardUser) => {
         if (user.name === userId) {
-          return { ...user, reward: true };
+          return { ...user, reward: false };
         } else {
           return user;
         }
@@ -242,7 +242,7 @@ async function updateDailyLeaderboards() {
 
   // Get the top 3 daily users and update the daily top 3 collection
   const yesterdayQuery = await usersRef.where('lastPlayed', '>=', yesterday).get();
-  const yesterdayUsers = yesterdayQuery.docs.map(doc => ({ id: doc.id, name: doc.data().userName, dailyScore: doc.data().dailyScore, reward: false }));
+  const yesterdayUsers = yesterdayQuery.docs.map(doc => ({ id: doc.id, name: doc.data().userName, dailyScore: doc.data().dailyScore, reward: true }));
   // Sort the users by daily score and get the top 3
   const top3Users = yesterdayUsers
     .filter(user => user.dailyScore > 0) // Exclude users with a daily score of 0
@@ -264,7 +264,7 @@ async function updateWeeklyLeaderboards() {
 
   // Get the top 3 weekly users and update the weekly top 3 collection
   const weeklyQuery = await usersRef.where('lastPlayed', '>=', lastWeekStart).get();
-  const weeklyUsers = weeklyQuery.docs.map(doc => ({ id: doc.id, name: doc.data().userName, weeklyScore: doc.data().weeklyScore, reward: false }));
+  const weeklyUsers = weeklyQuery.docs.map(doc => ({ id: doc.id, name: doc.data().userName, weeklyScore: doc.data().weeklyScore, reward: true }));
   const top3WeeklyUsers = weeklyUsers
     .filter(user => user.weeklyScore > 0) // Exclude users with a weekly score of 0
     .sort((a, b) => b.weeklyScore - a.weeklyScore)

@@ -57,14 +57,18 @@ export const getDailyRanks : RequestHandler = async (req: any, res: any) => {
     const myRank = dailyRanks.find((data) => data.user.userName === userId);
     const paginatedRanks = dailyRanks.slice(startAfter, endBefore);
     
-    const rewardUsers = (await db.collection(leaderboardCollection).doc("dailyReward").get()).data();
-    const userAward = rewardUsers?.users.filter((user: { name: any; }) => user.name == userId);
-    if(userAward)
+    const rewardUsersQuery = await db.collection(leaderboardCollection).doc("dailyReward").get();
+    const rewardUsers = rewardUsersQuery.data();
+    if (rewardUsers && Object.keys(rewardUsers).length > 0) 
     {
-      const awardStatus = userAward[0]?.reward;
-      console.log("awardStatus", awardStatus)
-      return res.status(StatusCodes.OK).json({awardStatus, myRank, paginatedRanks});
-    }    
+      const userAward = rewardUsers?.users.filter((user: { name: any; }) => user.name == userId);
+      if(userAward && userAward.length > 0)
+      {
+        const awardStatus = userAward[0]?.reward;
+        console.log("awardStatus", awardStatus)
+        return res.status(StatusCodes.OK).json({awardStatus, myRank, paginatedRanks});
+      }    
+    } 
     // Paginate results
     return res.status(StatusCodes.OK).json({myRank, paginatedRanks});
   } catch (error) {
@@ -95,14 +99,18 @@ export const getWeeklyRanks : RequestHandler = async (req: any, res: any) => {
     const myRank = weeklyRanks.find((data) => data.user.userName === userId);
     // Paginate results
     const paginatedRanks = weeklyRanks.slice(startAfter, endBefore);
-    const rewardUsers = (await db.collection(leaderboardCollection).doc("weeklyReward").get()).data();
-    const userAward = rewardUsers?.users.filter((user: { name: any; }) => user.name == userId);
-    if(userAward)
+    const rewardUsersQuery = await db.collection(leaderboardCollection).doc("weeklyReward").get();
+    const rewardUsers = rewardUsersQuery.data();
+    if (rewardUsers && Object.keys(rewardUsers).length > 0) 
     {
-      const awardStatus = userAward[0]?.reward;
-      console.log("awardStatus", awardStatus)
-      return res.status(StatusCodes.OK).json({awardStatus, myRank, paginatedRanks});
-    }    
+      const userAward = rewardUsers?.users.filter((user: { name: any; }) => user.name == userId);
+      if(userAward && userAward.length > 0)
+      {
+        const awardStatus = userAward[0]?.reward;
+        console.log("awardStatus", awardStatus)
+        return res.status(StatusCodes.OK).json({awardStatus, myRank, paginatedRanks});
+      }    
+    }
     // Paginate results
     return res.status(StatusCodes.OK).json({myRank, paginatedRanks});
     

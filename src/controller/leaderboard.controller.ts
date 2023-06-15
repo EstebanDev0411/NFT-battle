@@ -195,6 +195,36 @@ export const getWeeklyAward: RequestHandler = async (req, res) => {
   }
 };
 
+// Give Weekly Award
+export const getMonthlyReward: RequestHandler = async (req, res) => {
+  logger.info("Get Monthly Award");
+  const { userId } = req.query; 
+  try {
+    const { rewardAmount, walletAddress } = req.body;
+    // Example usage
+    const value = ethers.parseUnits(rewardAmount, 18); // Transfer 100 Candy Tokens
+    const receipt = await transferCandyToken(walletAddress, value);
+    if (receipt.status === 1) {
+      // Update database with successful transaction
+      const rewardUsers = (await db.collection(leaderboardCollection).doc("monthlyReward").get()).data();
+      console.log(rewardUsers)
+      const updatedUsers = rewardUsers?.users.map((user : AwardUser) => {
+        if (user.name === userId) {
+          return { ...user, reward: false };
+        } else {
+          return user;
+        }
+      });
+      await db.collection(leaderboardCollection).doc("monthlyReward").set({users: updatedUsers});
+      return res.status(200).json({ message: 'Award sent successfully' });
+    } else {
+      return res.status(500).json({ message: 'Transaction failed' });
+    }
+  } catch (error) {
+    return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json(error);
+  }
+};
+
 
 // export const resetDailyScore = functions.pubsub.schedule('every 24 hours').onRun(async (context) => {
 //   const collection = db.collection(dailyScoreCollection);
@@ -273,25 +303,26 @@ async function updateWeeklyLeaderboards() {
   await leaderboardRef.doc("weeklyReward").set({users: top3WeeklyUsers});
 }
 
-// Define a function to update the weekly leaderboard
 async function updateMonthlyLeaderboards() {
-  console.log('update monthly leaderboards!')
-  const usersRef = db.collection(userCollection);
+  console.log('Updating monthly leaderboards!');
   const leaderboardRef = db.collection(leaderboardCollection);
+  const monthlyRanking = leaderboardRef.doc('monthlyRanking');
+  const monthlyReward = leaderboardRef.doc('monthlyReward');
 
-  const today = new Date();
-  // const weekStart = new Date(today.getFullYear(), today.getMonth(), today.getDate() - today.getDay());
-  const lastWeekStart = new Date(today.getFullYear(), today.getMonth(), today.getDate() - today.getDay() - 7);
+  // Get the current top users in the monthly ranking
+  const leaderboardDoc = await monthlyRanking.get();
+  const currentTopUsers = leaderboardDoc.exists ? leaderboardDoc.data()?.topUsers ?? [] : [];
+  // Sort the top users by score in descending order
+  const sortedTopUsers = currentTopUsers.sort((a: { score: number; }, b: { score: number; }) => b.score - a.score);
 
-  // Get the top 3 weekly users and update the weekly top 3 collection
-  const weeklyQuery = await usersRef.where('lastPlayed', '>=', lastWeekStart).get();
-  const weeklyUsers = weeklyQuery.docs.map(doc => ({ id: doc.id, name: doc.data().userName, weeklyScore: doc.data().weeklyScore, reward: true }));
-  const top3WeeklyUsers = weeklyUsers
-    .filter(user => user.weeklyScore > 0) // Exclude users with a weekly score of 0
-    .sort((a, b) => b.weeklyScore - a.weeklyScore)
-    .slice(0, 3);
-  console.log(top3WeeklyUsers)
-  await leaderboardRef.doc("weeklyReward").set({users: top3WeeklyUsers});
+  // Extract the top 3 users and their scores
+  const top3Users = sortedTopUsers.slice(0, 3).map((user: { score: any; userId: any; }, index: number) => ({ score: user.score, rank: index + 1, name: user.userId, award: true}));
+
+  // Store the top 3 users in the monthly reward document
+  await monthlyReward.set({ topUsers: top3Users });
+
+  // Clear the data in the monthly ranking document
+  await monthlyRanking.set({ topUsers: [] });
 }
 
 // Define a function to reset the daily and weekly scores
@@ -325,5 +356,5 @@ setInterval(() => {
     }
   }, 60000);
 
-const leaderboard = { getDailyRanks, getWeeklyRanks, getDailyAward, getWeeklyAward };
+const leaderboard = { getDailyRanks, getWeeklyRanks, getDailyAward, getWeeklyAward, getMonthlyReward };
 export default leaderboard;

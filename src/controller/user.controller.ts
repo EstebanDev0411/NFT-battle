@@ -1,7 +1,7 @@
 import { RequestHandler } from "express";
 import { StatusCodes } from "http-status-codes";
 import logger from "../utils/logger";
-import { userCollection } from "../config/collections";
+import { userCollection, leaderboardCollection } from "../config/collections";
 import FirestoreService from "../service/firestore.service";
 import { getFirestore } from "firebase-admin/firestore";
 import * as admin from 'firebase-admin';
@@ -95,6 +95,24 @@ export const postScore: RequestHandler = async (req: any, res: any) => {
       // Update weekly score if it's higher than the current one
       await userDoc.ref.update({ weeklyScore: parseInt(score) });
     }
+    const leaderboardRef = db.collection(leaderboardCollection).doc('monthlyRanking');
+    const leaderboardDoc = await leaderboardRef.get();
+    const currentTopUsers = leaderboardDoc.exists ? leaderboardDoc.data()?.topUsers ?? [] : [];
+    const existingUserIndex = currentTopUsers.findIndex((user: { userId: any; }) => user.userId === userId);
+    if (existingUserIndex >= 0) {
+      // Update existing user's score
+      currentTopUsers[existingUserIndex].score = Math.max(currentTopUsers[existingUserIndex].score, parseInt(score));
+    } else {
+      // Add new user to top users list
+      const topScore = parseInt(score);
+      currentTopUsers.push({ userId, topScore });
+    }
+    
+    // Sort and limit top users list
+    const newTopUsers = currentTopUsers
+      .sort((a: { score: number; }, b: { score: number; }) => b.score - a.score)
+      .slice(0, 3);
+    await leaderboardRef.set({ topUsers: newTopUsers });
     return res.status(StatusCodes.OK).json("updated successfully");
   } catch(error) {
     return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json(error);

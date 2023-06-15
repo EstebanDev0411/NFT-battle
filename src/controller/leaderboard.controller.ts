@@ -273,6 +273,27 @@ async function updateWeeklyLeaderboards() {
   await leaderboardRef.doc("weeklyReward").set({users: top3WeeklyUsers});
 }
 
+// Define a function to update the weekly leaderboard
+async function updateMonthlyLeaderboards() {
+  console.log('update monthly leaderboards!')
+  const usersRef = db.collection(userCollection);
+  const leaderboardRef = db.collection(leaderboardCollection);
+
+  const today = new Date();
+  // const weekStart = new Date(today.getFullYear(), today.getMonth(), today.getDate() - today.getDay());
+  const lastWeekStart = new Date(today.getFullYear(), today.getMonth(), today.getDate() - today.getDay() - 7);
+
+  // Get the top 3 weekly users and update the weekly top 3 collection
+  const weeklyQuery = await usersRef.where('lastPlayed', '>=', lastWeekStart).get();
+  const weeklyUsers = weeklyQuery.docs.map(doc => ({ id: doc.id, name: doc.data().userName, weeklyScore: doc.data().weeklyScore, reward: true }));
+  const top3WeeklyUsers = weeklyUsers
+    .filter(user => user.weeklyScore > 0) // Exclude users with a weekly score of 0
+    .sort((a, b) => b.weeklyScore - a.weeklyScore)
+    .slice(0, 3);
+  console.log(top3WeeklyUsers)
+  await leaderboardRef.doc("weeklyReward").set({users: top3WeeklyUsers});
+}
+
 // Define a function to reset the daily and weekly scores
 // async function resetScores() {
 //   const usersRef = db.collection('users');
@@ -298,6 +319,9 @@ setInterval(() => {
     if (now.getDay() === 1 && now.getHours() === 0 && now.getMinutes() === 0)
     {
       updateWeeklyLeaderboards();
+    }
+    if (now.getDate() === 1 && now.getHours() === 0 && now.getMinutes() === 0) {
+      updateMonthlyLeaderboards();
     }
   }, 60000);
 

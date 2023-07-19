@@ -100,6 +100,7 @@ export const getWeeklyRanks : RequestHandler = async (req: any, res: any) => {
     const weekStart = new Date(today.getFullYear(), today.getMonth(), today.getDate() - today.getDay());
     const weekUsers = users.filter(user => user.weeklyScore > 0 && user.lastPlayed.toDate() >= weekStart);
     const weeklyRanks = weekUsers.map((user, index) => ({ user, rank: index + 1 }));
+    console.log(weeklyRanks)
     const myRank = weeklyRanks.find((data) => data.user.userName === userId);
     // Paginate results
     const paginatedRanks = weeklyRanks.slice(startAfter, endBefore);
@@ -195,7 +196,7 @@ export const getWeeklyAward: RequestHandler = async (req, res) => {
   }
 };
 
-// Give Weekly Award
+// Give Monthly Award
 export const getMonthlyReward: RequestHandler = async (req, res) => {
   logger.info("Get Monthly Award");
   const { userId } = req.query; 

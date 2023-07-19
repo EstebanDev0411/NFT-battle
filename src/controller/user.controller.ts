@@ -17,20 +17,20 @@ interface User {
   lastPlayed: admin.firestore.Timestamp;
 }
 
-export const deleteUser: RequestHandler = (req: any, res: any) => {
-  logger.info("delete user");
-  const userId = req.query.userId;
-  FirestoreService.deleteOne(userCollection, userId)
-    .then((_response) => {
-      return res
-        .status(StatusCodes.OK)
-        .json({ status: "successfully deleted" });
-    })
-    .catch((error: any) => {
-      return res
-        .status(StatusCodes.INTERNAL_SERVER_ERROR)
-        .json({ error: error.message });
+export const deleteUser: RequestHandler = async (req: any, res: any) => {
+  try {
+    const userId = req.query.userId;
+    const userRef = await db.collection(userCollection).where('userName', '==', userId).get();
+    if (userRef.empty) {
+      return res.status(StatusCodes.NOT_FOUND).json({ error: 'User not found' });
+    }
+    userRef.forEach(async (doc) => {
+      await db.collection(userCollection).doc(doc.id).delete();
     });
+    return res.status(StatusCodes.OK).json({ status: 'successfully deleted' });
+  } catch (error) {
+    return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({ error });
+  }
 };
 
 export const updateUser: RequestHandler = (req: any, res: any) => {
